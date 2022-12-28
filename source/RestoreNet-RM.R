@@ -222,6 +222,3 @@ pdf(file = paste(figPath, "macaqueID_", macaqueID, "_scatterpie.pdf", sep = ''),
 get.scatterpie(re.res, legend = TRUE)
 dev.off()
 
-
-
-

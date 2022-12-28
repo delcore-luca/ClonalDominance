@@ -176,30 +176,3 @@ pdf(file = paste(figPath, "vectorID_", vectorID, "_scatterpie.pdf", sep = ''), h
 get.scatterpie(re.res, legend = TRUE)
 dev.off()
 
-####### stacked bar plots #######
-sc_CTs <- lapply(colnames(Y), function(CT){
-  pal <- colorRampPalette(c(linColMap[CT], "black"))
-  COLS = pal(length(as.vector(unlist(dimnames(Y)[3]))))
-  COLS <- COLS[order(apply(Y[,CT,], 2, sum), decreasing = F)]
-  Y_CT_df <- as.data.frame.table(Y[,CT,])
-  # Y_CT_df <- as.data.frame.table(Y[,CT,]/rowSums(Y[,CT,]))
-  colnames(Y_CT_df) <- c("time", "clone", "count")
-
-  sc <- (ggplot(Y_CT_df,
-                aes(x = time,
-                    y = count,
-                    group = clone,
-                    fill = factor(clone)))
-         +geom_area(size=.3, colour="white")
-         + theme_bw() + scale_fill_manual(values=COLS)
-         + theme_classic() + labs(y= "barcode count", x = "time (months)")
-         + theme(legend.position="none",axis.text=element_text(size=20),
-                 axis.title=element_text(size=20,face="bold")));
-  return(sc)
-})
-
-pdf(file = paste(figPath, "/vectorID_", vectorID, "_stackedArea.pdf", sep = ''), height=16, width=8)
-ggarrange(plots = sc_CTs, nrow = length(sc_CTs), ncol = 1)
-dev.off()
-
-
