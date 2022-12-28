@@ -164,10 +164,16 @@ for (sim in 1:nSim) {
           lty = 3, lwd = 5, type = 'l',
           cex.axis = 2, cex.lab = 2,
           xlab = "t", ylab = expression(Y[t]), add = T) ## plot simulated trajectories
+  text(x = 30,
+       y = 210,
+       labels = "cell type", cex = 1.5)
   legend(x = 45,
          y = 230,
          legend = ctps,
          col = 1:4, pch = 19, cex = 1.5, horiz = T, bty = "n")
+  text(x = 30,
+       y = 190,
+       labels = "clone", cex = 1.5)
   legend(x = 40,
          y = 210,
          legend = 1:3,
@@ -196,13 +202,44 @@ for (sim in 1:nSim) {
   res.re.par[,sim] <- re.res$fit$par
   res.re.Euy[,sim] <- as.numeric(re.res$fit$VEuy$euy)
 
-  pdf(file = paste(figPath, "/thetaSim", sim,".pdf", sep = ''), height=5, width=5)
+  pdf(file = paste(figPath, "/thetaSim", sim,".pdf", sep = ''), height=6, width=6)
   par(mar = c(5,6,2,2))
-  plot(c(u_1, u_2, u_3), re.res$fit$VEuy$euy,
-       pch = 20, cex.axis = 2, cex.lab = 2, cex = 2,
-       xlab = expression(theta[true]), ylab = expression(E[hat(theta)](u*"|"*y)))
-  lines(x = range(c(u_1, u_2, u_3), as.numeric(re.res$fit$VEuy$euy)),
-        y = range(c(u_1, u_2, u_3), as.numeric(re.res$fit$VEuy$euy)), type = 'l', lty = 1, lwd = 2, col = "red")
+  plot(log(c(u_1, u_2, u_3)), log(re.res$fit$VEuy$euy),
+       # pch = 20,
+       pch = c(rep(1,4), rep(0,4), rep(2,3)),
+       col = alpha(rep(1:nC, each = length(u_1)), 1),
+       lwd = 2,
+       cex.axis = 2, cex.lab = 2, cex = 2,
+       xlab = expression(log~theta[true]), ylab = expression(log~E[hat(theta)](u*"|"*y)))
+  lines(x = log(range(c(u_1, u_2, u_3), as.numeric(re.res$fit$VEuy$euy))),
+        y = log(range(c(u_1, u_2, u_3), as.numeric(re.res$fit$VEuy$euy))), type = 'l', lty = 1, lwd = 2, col = "red")
+  legend(x = log(min(c(u_1, u_2, u_3, as.numeric(re.res$fit$VEuy$euy))))*1,
+         y = log(max(c(u_1, u_2, u_3, as.numeric(re.res$fit$VEuy$euy))))*.8,
+         legend = c(expression(alpha),
+                    expression(delta),
+                    expression(lambda)),
+         pch = c(1, 0, 2),
+         cex = 2,
+         horiz = TRUE,
+         bty = "n")
+  text(x = log(min(c(u_1, u_2, u_3, as.numeric(re.res$fit$VEuy$euy))))*.9,
+       y = log(max(c(u_1, u_2, u_3, as.numeric(re.res$fit$VEuy$euy))))*1.2,
+       cex = 1.5,
+       labels = "rates")
+  legend(x = log(max(c(u_1, u_2, u_3, as.numeric(re.res$fit$VEuy$euy))))*6.5,
+         y = log(min(c(u_1, u_2, u_3, as.numeric(re.res$fit$VEuy$euy))))*.9,
+         legend = c("1",
+                    "2",
+                    "3"),
+         pch = 20,
+         col = 1:3,
+         cex = 2,
+         horiz = TRUE,
+         bty = "n")
+  text(x = log(max(c(u_1, u_2, u_3, as.numeric(re.res$fit$VEuy$euy))))*2,
+       y = log(min(c(u_1, u_2, u_3, as.numeric(re.res$fit$VEuy$euy))))*.93,
+       cex = 1.5,
+       labels = "clones")
   dev.off()
 
   cbind(re.res$fit$VEuy$euy, c(u_1, u_2, u_3))

@@ -1,5 +1,4 @@
 cat("\nInstall/load packages")
-inst.pkgs <- installed.packages()
 
 ## required packages:
 l.pkgs <- c("devtools",
@@ -10,19 +9,10 @@ l.pkgs <- c("devtools",
             "Matrix",
             "stringr",
             "ggplot2",
-            "egg")
-## check if packages are installed
-lapply(l.pkgs, function(pkg){
-  if(!(pkg %in% rownames(inst.pkgs))){
-    install.packages(pkg)
-  }
-})
+            "egg",
+            "RestoreNet")
 
 lapply(l.pkgs, function(pkg){library(pkg,character.only=TRUE)})
-
-install_github("delcore-luca/RestoreNet",
-               ref = "master")
-library(RestoreNet)
 
 rm(list = ls())
 
@@ -55,17 +45,18 @@ figPath <- paste(resPath, "figures/", sep = "/")
 ifelse(!dir.exists(file.path(resPath)), dir.create(file.path(resPath)), FALSE)
 ifelse(!dir.exists(file.path(figPath)), dir.create(file.path(figPath)), FALSE)
 
-#############
-## macaqueID
-#############
-# macaqueID <- "ZH33"
-macaqueID <- commandArgs(trailingOnly = TRUE)
-data("Y_RM")
-Y <- Y_RM[[macaqueID]]
+load(file = "./data/Y_MS.rda")
 
-xtable(apply(Y, c(1,2), sum), digits = 0)
-Y <- get.rescaled(Y)
-Y <- Y[,,names(which(apply(Y != 0, 3, function(S){sum(S > 0)}) >= 5))]
+#############
+## vectorID
+#############
+# vectorID <- "PGK"
+vectorID <- commandArgs(trailingOnly = TRUE)
+Y <- Y_MS[[vectorID]]
+
+topClones <- 1000
+Y <- Y[,,names(head(sort(apply(Y!=0, 3, sum), decreasing = T), topClones)),drop=FALSE]
+cat(paste("n. of clones: ", dim(Y)[3], "\n", sep = ""))
 
 tps <- as.numeric(rownames(Y))
 tps <- (tps - min(tps))/(max(tps) - min(tps))
@@ -102,16 +93,12 @@ P <- list()
 ######################
 null.res <- fit.null(Y = Y,
                      rct.lst = c(
-                       "T->1",
-                       "B->1",
-                       "NK->1",
-                       "G->1",
                        "M->1",
-                       "T->0",
+                       "B->1",
+                       "T->1",
+                       "M->0",
                        "B->0",
-                       "NK->0",
-                       "G->0",
-                       "M->0"))
+                       "T->0"))
 
 resIC["null", names(null.res$stats)] <- null.res$stats
 resPAR[["null"]] <- null.res$fit$par
@@ -123,16 +110,12 @@ P[["null"]] <- null.res$stats["nPar"]
 re.res <- fit.re(theta_0 = null.res$fit$par,
                  Y = Y,
                  rct.lst = c(
-                   "T->1",
-                   "B->1",
-                   "NK->1",
-                   "G->1",
                    "M->1",
-                   "T->0",
+                   "B->1",
+                   "T->1",
+                   "M->0",
                    "B->0",
-                   "NK->0",
-                   "G->0",
-                   "M->0"),
+                   "T->0"),
                  maxemit = 1000)
 
 resIC["re", ] <- re.res$stats
@@ -140,12 +123,12 @@ resPAR[["re"]] <- re.res$fit$par
 P[["re"]] <- length(re.res$fit$par)
 
 ########### STORE RESULTS ###########
-write.table(resIC, file = paste(resPath, "/", macaqueID, "_AICs.tsv", sep = ""), sep = "\t", row.names = TRUE, col.names = TRUE)
-print(xtable(resIC[, c("nPar", "mAIC", "KLdiv", "KLdiv/N")]), file = paste(resPath, "/", macaqueID, "_AICsforLatex.txt", sep = ""))
+write.table(resIC, file = paste(resPath, "/", vectorID, "_AICs.tsv", sep = ""), sep = "\t", row.names = TRUE, col.names = TRUE)
+print(xtable(resIC[, c("nPar", "mAIC", "KLdiv", "KLdiv/N")]), file = paste(resPath, "/", vectorID, "_AICsforLatex.txt", sep = ""))
 
 
 ########### STORE ENVIRONMENT ###########
-save.image(paste(resPath, "/", macaqueID, "_LLAwithAIC.RData", sep = ""))
+save.image(paste(resPath, "/", vectorID, "_LLAwithAIC.RData", sep = ""))
 gc()
 
 
@@ -153,7 +136,7 @@ gc()
 linColMap <- brewer.pal(nrow(null.res$design$V), "Set2")
 names(linColMap) <- rownames(null.res$design$V)
 
-pdf(file = paste(figPath, "macaqueID_", macaqueID, "_clonalTrackingData.pdf", sep = ''), height=5, width=7)
+pdf(file = paste(figPath, "vectorID_", vectorID, "_clonalTrackingData.pdf", sep = ''), height=5, width=7)
 par(mar = c(5,5,2,2))
 matplot(as.numeric(rownames(Y_NA)), log(Y_NA[,,1]), lty = 1, pch = 20, col = alpha(linColMap, alpha = .2), cex = 3, lwd = 3,
         ylim = range(c(log(Y_NA)), na.rm = T), type = 'b', cex.axis = 2, cex.lab = 2, ylab = expression(logY[t]), xlab = "time (months)", xaxt = "n")
@@ -161,22 +144,39 @@ lapply(1:dim(Y)[3], function(cl){
   matplot(as.numeric(rownames(Y_NA)), log(Y_NA[,,cl]), lty = 1, pch = 20, add = T, col = alpha(linColMap, alpha = .2), cex = 2, type = 'b', lwd = 3)
 })
 axis(1, at=as.numeric(rownames(Y_NA)),
-     labels=rownames(Y_RM[[macaqueID]]),
+     labels=rownames(Y_RM[[vectorID]]),
      cex.axis = 2, cex.lab = 2)
 matplot(as.numeric(rownames(Y_NA)), apply(log(Y_NA), c(1,2), mean, na.rm = T), type = 'l', lty = 1, col = linColMap, add = T, lwd = 10)
 # legend(x = "topleft", legend = colnames(Y), col = linColMap, pch = 20, lwd = 5, cex = 1.5)
 dev.off()
 
-#################################
-####### stacked bar plots #######
-#################################
 
 linColMap <- brewer.pal(nrow(null.res$design$V), "Set2")
 names(linColMap) <- rownames(null.res$design$V)
 
-rownames(Y) <- rownames(Y_RM[[macaqueID]])
+rownames(Y) <- rownames(Y_RM[[vectorID]])
 
+########### STORE PARAMETERS ###########
+xsol <- resPAR$re
+psol <- (length(xsol) - 1)/2
+rndEffParsMat <- matrix(xsol[1:(2*psol)], nrow = psol, ncol = 2)
+rownames(rndEffParsMat) <- colnames(null.res$design$V)
 
+colnames(rndEffParsMat) <- c("theta", "sd")
+rndEffParsMat[,"sd"] <- sqrt(rndEffParsMat[,"sd"])
+print(xtable(rndEffParsMat, digits = 3), include.rownames=FALSE, file = paste(resPath, "/", vectorID, "REparForLatex.txt", sep = ""))
+
+########### BOXPLOTS ###########
+pdf(file = paste(figPath, "vectorID_", vectorID, "_boxplots.pdf", sep = ''), height=10, width=10)
+get.boxplots(re.res)
+dev.off()
+
+########### SCATTERPIE PLOT ###########
+pdf(file = paste(figPath, "vectorID_", vectorID, "_scatterpie.pdf", sep = ''), height=10, width=10)
+get.scatterpie(re.res, legend = TRUE)
+dev.off()
+
+####### stacked bar plots #######
 sc_CTs <- lapply(colnames(Y), function(CT){
   pal <- colorRampPalette(c(linColMap[CT], "black"))
   COLS = pal(length(as.vector(unlist(dimnames(Y)[3]))))
@@ -198,30 +198,8 @@ sc_CTs <- lapply(colnames(Y), function(CT){
   return(sc)
 })
 
-pdf(file = paste(figPath, "/macaqueID_", macaqueID, "_stackedArea.pdf", sep = ''), height=16, width=8)
+pdf(file = paste(figPath, "/vectorID_", vectorID, "_stackedArea.pdf", sep = ''), height=16, width=8)
 ggarrange(plots = sc_CTs, nrow = length(sc_CTs), ncol = 1)
 dev.off()
-
-########### STORE PARAMETERS ###########
-xsol <- resPAR$re
-psol <- (length(xsol) - 1)/2
-rndEffParsMat <- matrix(xsol[1:(2*psol)], nrow = psol, ncol = 2)
-rownames(rndEffParsMat) <- colnames(null.res$design$V)
-
-colnames(rndEffParsMat) <- c("theta", "sd")
-rndEffParsMat[,"sd"] <- sqrt(rndEffParsMat[,"sd"])
-print(xtable(rndEffParsMat, digits = 3), include.rownames=FALSE, file = paste(resPath, "/", macaqueID, "REparForLatex.txt", sep = ""))
-
-########### BOXPLOTS ###########
-pdf(file = paste(figPath, "macaqueID_", macaqueID, "_boxplots.pdf", sep = ''), height=10, width=10)
-get.boxplots(re.res)
-dev.off()
-
-########### SCATTERPIE PLOT ###########
-pdf(file = paste(figPath, "macaqueID_", macaqueID, "_scatterpie.pdf", sep = ''), height=10, width=10)
-get.scatterpie(re.res, legend = TRUE)
-dev.off()
-
-
 
 
